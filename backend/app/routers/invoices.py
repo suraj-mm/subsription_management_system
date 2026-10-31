@@ -1,7 +1,10 @@
 import datetime
+import logging
 from math import ceil
 from typing import Optional, List
 from decimal import Decimal
+
+logger = logging.getLogger("brightloop.invoices")
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
@@ -226,7 +229,7 @@ def send_invoice(
     db.commit()
 
     # Log/Print simulation
-    print(f"\n[INVOICE DISPATCH] Sending invoice {inv.invoice_number} to {inv.customer.email} (Total: ₹{inv.total_amount})")
+    logger.info("Invoice %s dispatched to %s (Total: INR %s)", inv.invoice_number, inv.customer.email, inv.total_amount)
 
     return {
         "message": f"Invoice {inv.invoice_number} sent to {inv.customer.email}",

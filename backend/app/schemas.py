@@ -243,7 +243,7 @@ class PlanResponse(PlanBase):
 
 # --- Discount Schemas ---
 class DiscountBase(BaseModel):
-    code: str
+    code: Optional[str] = None
     name: str
     discount_type: str  # fixed, percent
     value: Decimal
@@ -334,6 +334,13 @@ class QuotationTemplateCreate(BaseModel):
     lines: List[QuotationTemplateLineCreate] = []
 
 
+class QuotationTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    validity_days: Optional[int] = None
+    plan_id: Optional[int] = None
+    lines: Optional[List[QuotationTemplateLineCreate]] = None
+
+
 class QuotationTemplateResponse(BaseModel):
     id: int
     name: str
@@ -381,6 +388,7 @@ class SubscriptionCreate(BaseModel):
 
 class SubscriptionFromTemplateRequest(BaseModel):
     customer_id: int
+    template_id: Optional[int] = None
     start_date: Optional[date] = None
     payment_terms: str = "Immediate"
     discount_id: Optional[int] = None

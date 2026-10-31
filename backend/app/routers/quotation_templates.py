@@ -8,7 +8,7 @@ from backend.app.models import (
     QuotationTemplate, QuotationTemplateLine, Product, ProductVariant, Plan, User
 )
 from backend.app.schemas import (
-    QuotationTemplateCreate, QuotationTemplateResponse, PaginatedResponse
+    QuotationTemplateCreate, QuotationTemplateUpdate, QuotationTemplateResponse, PaginatedResponse
 )
 from backend.app.deps import get_current_user, require_roles
 
@@ -114,13 +114,57 @@ def get_quotation_template(
     return template
 
 
+@router.patch("/{id}", response_model=QuotationTemplateResponse)
+def update_quotation_template(
+    id: int,
+    req: QuotationTemplateUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles("admin", "staff"))
+):
+    """Admin/Staff: Updates quotation template and its nested line items."""
+    template = db.query(QuotationTemplate).filter(QuotationTemplate.id == id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Quotation template not found")
+
+    if req.name is not None:
+        template.name = req.name.strip()
+    if req.validity_days is not None:
+        template.validity_days = req.validity_days
+    if req.plan_id is not None:
+        template.plan_id = req.plan_id
+
+    if req.lines is not None:
+        # Validate lines
+        for idx, line in enumerate(req.lines):
+            prod = db.query(Product).filter(Product.id == line.product_id).first()
+            if not prod:
+                raise HTTPException(status_code=400, detail=f"Line {idx + 1}: Product not found")
+            if line.quantity <= 0:
+                raise HTTPException(status_code=400, detail=f"Line {idx + 1}: Quantity must be greater than 0")
+
+        # Replace lines
+        db.query(QuotationTemplateLine).filter(QuotationTemplateLine.template_id == template.id).delete()
+        for line in req.lines:
+            t_line = QuotationTemplateLine(
+                template_id=template.id,
+                product_id=line.product_id,
+                variant_id=line.variant_id,
+                quantity=line.quantity
+            )
+            db.add(t_line)
+
+    db.commit()
+    db.refresh(template)
+    return template
+
+
 @router.delete("/{id}")
 def delete_quotation_template(
     id: int,
     db: Session = Depends(get_db),
-    admin: User = Depends(require_roles("admin"))
+    user: User = Depends(require_roles("admin", "staff"))
 ):
-    """Admin-only: Deletes quotation template."""
+    """Admin/Staff: Deletes quotation template."""
     template = db.query(QuotationTemplate).filter(QuotationTemplate.id == id).first()
     if not template:
         raise HTTPException(status_code=404, detail="Quotation template not found")

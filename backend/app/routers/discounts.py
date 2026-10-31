@@ -1,3 +1,4 @@
+import re
 from math import ceil
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -56,7 +57,12 @@ def create_discount(
     Admin-only: Creates a discount coupon.
     Enforces percentage bounds (<=100), value > 0, date validity, and product binding.
     """
-    code = req.code.strip().upper()
+    if req.code and req.code.strip():
+        code = req.code.strip().upper()
+    else:
+        clean = re.sub(r'[^A-Z0-9]', '', req.name.upper())[:8]
+        code = f"{clean or 'DISC'}-{int(datetime.datetime.utcnow().timestamp()) % 10000:04d}"
+
     existing = db.query(Discount).filter(Discount.code == code).first()
     if existing:
         raise HTTPException(status_code=409, detail=f"Discount code '{code}' already exists")

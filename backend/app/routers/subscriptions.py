@@ -195,10 +195,11 @@ def create_subscription(
     return serialize_subscription(sub)
 
 
+@router.post("/from-template", response_model=SubscriptionResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/from-template/{template_id}", response_model=SubscriptionResponse, status_code=status.HTTP_201_CREATED)
 def create_subscription_from_template(
-    template_id: int,
     req: SubscriptionFromTemplateRequest,
+    template_id: Optional[int] = None,
     db: Session = Depends(get_db),
     user: User = Depends(require_roles("admin", "staff"))
 ):
@@ -207,7 +208,11 @@ def create_subscription_from_template(
     Sets status = 'Quotation' and quotation_valid_until = today + validity_days.
     Snapshots current pricing.
     """
-    template = db.query(QuotationTemplate).filter(QuotationTemplate.id == template_id).first()
+    target_tpl_id = template_id or req.template_id
+    if not target_tpl_id:
+        raise HTTPException(status_code=400, detail="template_id must be provided")
+
+    template = db.query(QuotationTemplate).filter(QuotationTemplate.id == target_tpl_id).first()
     if not template:
         raise HTTPException(status_code=404, detail="Quotation template not found")
 

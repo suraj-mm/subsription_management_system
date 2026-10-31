@@ -91,7 +91,8 @@ export async function renderInvoices() {
       try {
         const date = document.getElementById("gen-date").value;
         const result = await apiFetch(`/invoices/generate?billing_date=${date}`, { method: "POST" });
-        toast(`Generated ${result.generated ?? 0} invoice(s)`, "success");
+        const count = Array.isArray(result) ? result.length : (result.generated ?? 0);
+        toast(`Generated ${count} invoice(s)`, "success");
         closeModal("generate-modal");
         await refreshTable();
       } catch (e) { toast(e.message, "error"); }
