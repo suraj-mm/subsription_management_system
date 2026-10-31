@@ -1,3 +1,5 @@
+import asyncio
+import datetime
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -9,14 +11,17 @@ from backend.app.database import engine, Base, SessionLocal
 from backend.app.models import User
 from backend.app.security import get_password_hash
 from backend.app.routers import (
-    auth, admin, products, plans, taxes, quotation_templates, subscriptions
+    auth, admin, products, plans, taxes, quotation_templates,
+    subscriptions, discounts, invoices, payments, dashboard
 )
 from backend.app.services.subscription_service import auto_close_expired_subscriptions
+from backend.app.services.invoice_service import run_billing
+from backend.app.services.event_bus import event_bus
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("brightloop")
 
-# APScheduler instance for background lifecycle tasks
+# APScheduler instance for background recurring tasks
 scheduler = BackgroundScheduler()
 
 
@@ -33,8 +38,24 @@ def run_auto_close_job():
         db.close()
 
 
+def run_daily_billing_job():
+    """Daily automated recurring billing run."""
+    db = SessionLocal()
+    try:
+        invoices = run_billing(db, today=datetime.date.today())
+        if invoices:
+            logger.info("Daily recurring billing job generated %d invoice(s)", len(invoices))
+    except Exception as e:
+        logger.error("Error executing daily recurring billing job: %s", e)
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # 0. Register running asyncio event loop with event bus for thread-safe SSE dispatch
+    event_bus.set_loop(asyncio.get_running_loop())
+
     # 1. Automatically create all 13 database tables on startup
     logger.info("Initializing database schema...")
     Base.metadata.create_all(bind=engine)
@@ -59,7 +80,7 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
-    # 3. Start APScheduler for automated subscription lifecycle maintenance
+    # 3. Start APScheduler for automated subscription & billing maintenance
     if not scheduler.running:
         scheduler.add_job(
             run_auto_close_job,
@@ -68,8 +89,15 @@ async def lifespan(app: FastAPI):
             id="subscription_auto_close",
             replace_existing=True
         )
+        scheduler.add_job(
+            run_daily_billing_job,
+            "interval",
+            hours=24,
+            id="subscription_billing_run",
+            replace_existing=True
+        )
         scheduler.start()
-        logger.info("APScheduler initialized: daily auto-close job registered.")
+        logger.info("APScheduler initialized: daily auto-close and billing jobs registered.")
 
     yield
 
@@ -105,7 +133,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount All Routers
+# Mount All System Routers
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(products.router)
@@ -113,6 +141,10 @@ app.include_router(plans.router)
 app.include_router(taxes.router)
 app.include_router(quotation_templates.router)
 app.include_router(subscriptions.router)
+app.include_router(discounts.router)
+app.include_router(invoices.router)
+app.include_router(payments.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/health", tags=["System"])

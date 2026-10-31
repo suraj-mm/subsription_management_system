@@ -130,6 +130,7 @@ def create_subscription(
         start_date=req.start_date,
         expiry_date=expiry,
         payment_terms=req.payment_terms,
+        discount_id=req.discount_id,
         status="Draft"
     )
     db.add(sub)
@@ -211,6 +212,7 @@ def create_subscription_from_template(
         start_date=start,
         expiry_date=expiry,
         payment_terms=req.payment_terms,
+        discount_id=req.discount_id,
         status="Quotation",
         quotation_valid_until=valid_until
     )

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.models import Subscription, Plan, User
 from backend.app.services.pricing_service import quantize_money
+from backend.app.services.event_bus import event_bus
 
 # Official State Machine Transition Matrix
 ALLOWED_TRANSITIONS = {
@@ -123,6 +124,16 @@ def transition_subscription(
     sub.status = target_status
     db.commit()
     db.refresh(sub)
+
+    # Publish real-time status change to SSE event bus
+    event_bus.publish("subscription.status", {
+        "subscription_id": sub.id,
+        "subscription_number": sub.subscription_number,
+        "customer_id": sub.customer_id,
+        "previous_status": current_status,
+        "new_status": target_status
+    })
+
     return sub
 
 

@@ -183,6 +183,7 @@ class Subscription(Base):
     next_invoice_date = Column(Date, nullable=True, index=True)
     quotation_valid_until = Column(Date, nullable=True)
     template_id = Column(Integer, ForeignKey("quotation_templates.id", ondelete="SET NULL"), nullable=True)
+    discount_id = Column(Integer, ForeignKey("discounts.id", ondelete="SET NULL"), nullable=True)
 
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
@@ -195,6 +196,7 @@ class Subscription(Base):
     customer = relationship("User", back_populates="subscriptions")
     plan = relationship("Plan", back_populates="subscriptions")
     template = relationship("QuotationTemplate")
+    discount = relationship("Discount")
     lines = relationship("SubscriptionLine", back_populates="subscription", cascade="all, delete-orphan")
     invoices = relationship("Invoice", back_populates="subscription")
 
@@ -238,6 +240,7 @@ class Invoice(Base):
     tax_amount = Column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
     total_amount = Column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
     amount_paid = Column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
+    sent_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
@@ -265,6 +268,7 @@ class InvoiceLine(Base):
     product_id = Column(Integer, ForeignKey("products.id", ondelete="RESTRICT"), nullable=False)
     qty = Column(Integer, default=1, nullable=False)
     price = Column(Numeric(12, 2), nullable=False)
+    discount_amount = Column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
     tax_rate = Column(Numeric(5, 2), default=Decimal("0.00"), nullable=False)
     amount = Column(Numeric(12, 2), nullable=False)
 

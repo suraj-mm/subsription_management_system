@@ -241,6 +241,71 @@ class PlanResponse(PlanBase):
         from_attributes = True
 
 
+# --- Discount Schemas ---
+class DiscountBase(BaseModel):
+    code: str
+    name: str
+    discount_type: str  # fixed, percent
+    value: Decimal
+    min_purchase: Decimal = Decimal("0.00")
+    min_qty: int = 0
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    usage_limit: Optional[int] = None  # null means unlimited
+    applies_to: str = "subscription"   # product, subscription
+    product_id: Optional[int] = None
+    is_active: bool = True
+
+    @model_validator(mode="after")
+    def validate_discount_rules(self):
+        if self.value <= Decimal("0.00"):
+            raise ValueError("Discount value must be strictly greater than 0")
+        if self.discount_type == "percent" and self.value > Decimal("100.00"):
+            raise ValueError("Percentage discount value cannot exceed 100%")
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValueError("end_date cannot be earlier than start_date")
+        if self.applies_to == "product" and not self.product_id:
+            raise ValueError("product_id is required when applies_to is 'product'")
+        return self
+
+
+class DiscountCreate(DiscountBase):
+    pass
+
+
+class DiscountUpdate(BaseModel):
+    name: Optional[str] = None
+    discount_type: Optional[str] = None
+    value: Optional[Decimal] = None
+    min_purchase: Optional[Decimal] = None
+    min_qty: Optional[int] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    usage_limit: Optional[int] = None
+    applies_to: Optional[str] = None
+    product_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
+    @model_validator(mode="after")
+    def validate_discount_rules(self):
+        if self.value is not None and self.value <= Decimal("0.00"):
+            raise ValueError("Discount value must be strictly greater than 0")
+        if self.discount_type == "percent" and self.value is not None and self.value > Decimal("100.00"):
+            raise ValueError("Percentage discount value cannot exceed 100%")
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValueError("end_date cannot be earlier than start_date")
+        return self
+
+
+class DiscountResponse(DiscountBase):
+    id: int
+    used_count: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # --- Quotation Template Schemas ---
 class QuotationTemplateLineCreate(BaseModel):
     product_id: int
@@ -310,6 +375,7 @@ class SubscriptionCreate(BaseModel):
     start_date: date
     expiry_date: Optional[date] = None
     payment_terms: str = "Immediate"
+    discount_id: Optional[int] = None
     lines: List[SubscriptionLineInput] = []
 
 
@@ -317,11 +383,13 @@ class SubscriptionFromTemplateRequest(BaseModel):
     customer_id: int
     start_date: Optional[date] = None
     payment_terms: str = "Immediate"
+    discount_id: Optional[int] = None
 
 
 class SubscriptionUpdate(BaseModel):
     payment_terms: Optional[str] = None
     expiry_date: Optional[date] = None
+    discount_id: Optional[int] = None
     lines: Optional[List[SubscriptionLineInput]] = None
 
 
@@ -331,6 +399,7 @@ class SubscriptionResponse(BaseModel):
     customer_id: int
     plan_id: int
     template_id: Optional[int] = None
+    discount_id: Optional[int] = None
     start_date: date
     expiry_date: Optional[date] = None
     payment_terms: str
@@ -344,21 +413,24 @@ class SubscriptionResponse(BaseModel):
     lines: List[SubscriptionLineResponse] = []
     plan: Optional[PlanResponse] = None
     customer: Optional[UserResponse] = None
+    discount: Optional[DiscountResponse] = None
 
     class Config:
         from_attributes = True
 
 
-# --- Invoice Schemas (For Phase 3 compatibility) ---
+# --- Invoice Schemas ---
 class InvoiceLineResponse(BaseModel):
     id: int
     invoice_id: int
     product_id: int
     qty: int
     price: Decimal
-    tax_rate: Decimal
+    discount_amount: Decimal = Decimal("0.00")
+    tax_rate: Decimal = Decimal("0.00")
     amount: Decimal
     created_at: datetime
+    product: Optional[ProductResponse] = None
 
     class Config:
         from_attributes = True
@@ -379,18 +451,31 @@ class InvoiceResponse(BaseModel):
     tax_amount: Decimal
     total_amount: Decimal
     amount_paid: Decimal
+    outstanding_balance: Decimal = Decimal("0.00")
+    sent_at: Optional[datetime] = None
     created_at: datetime
     lines: List[InvoiceLineResponse] = []
+    customer: Optional[UserResponse] = None
 
     class Config:
         from_attributes = True
 
 
+class InvoiceGenerateRequest(BaseModel):
+    auto_confirm: bool = False
+    billing_date: Optional[date] = None
+
+
+class InvoiceBulkConfirmRequest(BaseModel):
+    invoice_ids: List[int]
+
+
 # --- Payment Schemas ---
 class PaymentCreate(BaseModel):
     invoice_id: int
-    method: str = "bank_transfer"
+    method: str = "Bank Transfer"  # Cash, Bank Transfer, UPI, Card, Cheque
     amount: Decimal
+    payment_date: Optional[datetime] = None
     note: Optional[str] = None
 
 
@@ -405,3 +490,18 @@ class PaymentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# --- Dashboard Schemas ---
+class DashboardSummaryResponse(BaseModel):
+    active_subscriptions: int
+    revenue_collected: Decimal
+    outstanding_amount: Decimal
+    overdue_amount: Decimal
+    overdue_invoices_count: int
+    mrr: Decimal
+
+
+class RevenueTrendItem(BaseModel):
+    month: str
+    revenue: Decimal
