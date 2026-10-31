@@ -1,11 +1,14 @@
 import re
 from decimal import Decimal
-from typing import Optional, List
+from typing import Optional, List, Generic, TypeVar, Any
 from datetime import datetime, date
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 
-# --- Password Validation Rule ---
+T = TypeVar("T")
+
+
+# --- Reusable Password Validation Rule ---
 def validate_password(v: str) -> str:
     if len(v) <= 8:
         raise ValueError("Password must be more than 8 characters")
@@ -20,6 +23,15 @@ def validate_password(v: str) -> str:
     if not re.search(r"[^A-Za-z0-9]", v):
         raise ValueError("Needs a special character")
     return v
+
+
+# --- Generic Pagination Response ---
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: List[T]
+    total: int
+    page: int
+    size: int
+    pages: int
 
 
 # --- Auth & User Schemas ---
@@ -86,7 +98,34 @@ class TokenResponse(BaseModel):
     user: UserResponse
 
 
-# --- Product & Variant Schemas ---
+# --- Tax Schemas ---
+class TaxBase(BaseModel):
+    name: str
+    rate: Decimal
+    type: str = "percent"  # percent, fixed
+    is_active: bool = True
+
+
+class TaxCreate(TaxBase):
+    pass
+
+
+class TaxUpdate(BaseModel):
+    name: Optional[str] = None
+    rate: Optional[Decimal] = None
+    type: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class TaxResponse(TaxBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Product Variant Schemas ---
 class ProductVariantBase(BaseModel):
     attribute: str
     value: str
@@ -95,6 +134,12 @@ class ProductVariantBase(BaseModel):
 
 class ProductVariantCreate(ProductVariantBase):
     pass
+
+
+class ProductVariantUpdate(BaseModel):
+    attribute: Optional[str] = None
+    value: Optional[str] = None
+    extra_price: Optional[Decimal] = None
 
 
 class ProductVariantResponse(ProductVariantBase):
@@ -106,12 +151,14 @@ class ProductVariantResponse(ProductVariantBase):
         from_attributes = True
 
 
+# --- Product Schemas ---
 class ProductBase(BaseModel):
     name: str
     type: str = "service"
     sales_price: Decimal = Decimal("0.00")
     cost_price: Decimal = Decimal("0.00")
     notes: Optional[str] = None
+    tax_id: Optional[int] = None
     is_active: bool = True
 
 
@@ -119,10 +166,21 @@ class ProductCreate(ProductBase):
     variants: Optional[List[ProductVariantCreate]] = None
 
 
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    sales_price: Optional[Decimal] = None
+    cost_price: Optional[Decimal] = None
+    notes: Optional[str] = None
+    tax_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
 class ProductResponse(ProductBase):
     id: int
     created_at: datetime
     variants: List[ProductVariantResponse] = []
+    tax: Optional[TaxResponse] = None
 
     class Config:
         from_attributes = True
@@ -142,9 +200,37 @@ class PlanBase(BaseModel):
     allow_renew: bool = True
     is_active: bool = True
 
+    @model_validator(mode="after")
+    def validate_date_range(self):
+        if self.start_date and self.end_date:
+            if self.end_date <= self.start_date:
+                raise ValueError("end_date must be strictly after start_date")
+        return self
+
 
 class PlanCreate(PlanBase):
     pass
+
+
+class PlanUpdate(BaseModel):
+    name: Optional[str] = None
+    price: Optional[Decimal] = None
+    billing_period: Optional[str] = None
+    min_quantity: Optional[int] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    auto_close: Optional[bool] = None
+    allow_early_close: Optional[bool] = None
+    allow_pause: Optional[bool] = None
+    allow_renew: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+    @model_validator(mode="after")
+    def validate_date_range(self):
+        if self.start_date and self.end_date:
+            if self.end_date <= self.start_date:
+                raise ValueError("end_date must be strictly after start_date")
+        return self
 
 
 class PlanResponse(PlanBase):
@@ -155,142 +241,115 @@ class PlanResponse(PlanBase):
         from_attributes = True
 
 
-# --- Tax Schemas ---
-class TaxBase(BaseModel):
-    name: str
-    rate: Decimal
-    type: str = "percent"
-    is_active: bool = True
-
-
-class TaxCreate(TaxBase):
-    pass
-
-
-class TaxResponse(TaxBase):
-    id: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-# --- Discount Schemas ---
-class DiscountBase(BaseModel):
-    code: str
-    name: str
-    discount_type: str  # fixed, percent
-    value: Decimal
-    min_purchase: Decimal = Decimal("0.00")
-    min_qty: int = 0
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    usage_limit: Optional[int] = None
-    applies_to: str = "subscription"
-    product_id: Optional[int] = None
-    is_active: bool = True
-
-
-class DiscountCreate(DiscountBase):
-    pass
-
-
-class DiscountResponse(DiscountBase):
-    id: int
-    used_count: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
 # --- Quotation Template Schemas ---
-class QuotationTemplateLineBase(BaseModel):
+class QuotationTemplateLineCreate(BaseModel):
     product_id: int
     variant_id: Optional[int] = None
     quantity: int = 1
 
 
-class QuotationTemplateLineCreate(QuotationTemplateLineBase):
-    pass
-
-
-class QuotationTemplateLineResponse(QuotationTemplateLineBase):
+class QuotationTemplateLineResponse(BaseModel):
     id: int
     template_id: int
+    product_id: int
+    variant_id: Optional[int] = None
+    quantity: int
     created_at: datetime
+    product: Optional[ProductResponse] = None
+    variant: Optional[ProductVariantResponse] = None
 
     class Config:
         from_attributes = True
 
 
-class QuotationTemplateBase(BaseModel):
+class QuotationTemplateCreate(BaseModel):
     name: str
     validity_days: int = 30
     plan_id: Optional[int] = None
-
-
-class QuotationTemplateCreate(QuotationTemplateBase):
     lines: List[QuotationTemplateLineCreate] = []
 
 
-class QuotationTemplateResponse(QuotationTemplateBase):
+class QuotationTemplateResponse(BaseModel):
     id: int
+    name: str
+    validity_days: int
+    plan_id: Optional[int] = None
     created_at: datetime
     lines: List[QuotationTemplateLineResponse] = []
+    plan: Optional[PlanResponse] = None
 
     class Config:
         from_attributes = True
 
 
 # --- Subscription Schemas ---
-class SubscriptionLineBase(BaseModel):
+class SubscriptionLineInput(BaseModel):
     product_id: int
     variant_id: Optional[int] = None
     qty: int = 1
-    unit_price: Decimal
-    tax_rate: Decimal = Decimal("0.00")
-    amount: Decimal
 
 
-class SubscriptionLineCreate(SubscriptionLineBase):
-    pass
-
-
-class SubscriptionLineResponse(SubscriptionLineBase):
+class SubscriptionLineResponse(BaseModel):
     id: int
     subscription_id: int
+    product_id: int
+    variant_id: Optional[int] = None
+    qty: int
+    unit_price: Decimal
+    tax_rate: Decimal
+    amount: Decimal
     created_at: datetime
 
     class Config:
         from_attributes = True
 
 
-class SubscriptionBase(BaseModel):
+class SubscriptionCreate(BaseModel):
     customer_id: int
     plan_id: int
     start_date: date
     expiry_date: Optional[date] = None
     payment_terms: str = "Immediate"
+    lines: List[SubscriptionLineInput] = []
 
 
-class SubscriptionCreate(SubscriptionBase):
-    lines: List[SubscriptionLineCreate] = []
+class SubscriptionFromTemplateRequest(BaseModel):
+    customer_id: int
+    start_date: Optional[date] = None
+    payment_terms: str = "Immediate"
 
 
-class SubscriptionResponse(SubscriptionBase):
+class SubscriptionUpdate(BaseModel):
+    payment_terms: Optional[str] = None
+    expiry_date: Optional[date] = None
+    lines: Optional[List[SubscriptionLineInput]] = None
+
+
+class SubscriptionResponse(BaseModel):
     id: int
     subscription_number: str
+    customer_id: int
+    plan_id: int
+    template_id: Optional[int] = None
+    start_date: date
+    expiry_date: Optional[date] = None
+    payment_terms: str
     status: str
     next_invoice_date: Optional[date] = None
+    quotation_valid_until: Optional[date] = None
     created_at: datetime
+    subtotal: Decimal = Decimal("0.00")
+    tax_amount: Decimal = Decimal("0.00")
+    total_amount: Decimal = Decimal("0.00")
     lines: List[SubscriptionLineResponse] = []
+    plan: Optional[PlanResponse] = None
+    customer: Optional[UserResponse] = None
 
     class Config:
         from_attributes = True
 
 
-# --- Invoice Schemas ---
+# --- Invoice Schemas (For Phase 3 compatibility) ---
 class InvoiceLineResponse(BaseModel):
     id: int
     invoice_id: int

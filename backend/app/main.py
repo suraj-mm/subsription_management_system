@@ -2,15 +2,35 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from backend.app.config import settings
 from backend.app.database import engine, Base, SessionLocal
 from backend.app.models import User
 from backend.app.security import get_password_hash
-from backend.app.routers import auth, admin
+from backend.app.routers import (
+    auth, admin, products, plans, taxes, quotation_templates, subscriptions
+)
+from backend.app.services.subscription_service import auto_close_expired_subscriptions
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("brightloop")
+
+# APScheduler instance for background lifecycle tasks
+scheduler = BackgroundScheduler()
+
+
+def run_auto_close_job():
+    """Background task executing daily to close expired subscriptions where plan.auto_close=True."""
+    db = SessionLocal()
+    try:
+        count = auto_close_expired_subscriptions(db)
+        if count > 0:
+            logger.info("Auto-close job completed: closed %d expired subscription(s)", count)
+    except Exception as e:
+        logger.error("Error executing auto-close job: %s", e)
+    finally:
+        db.close()
 
 
 @asynccontextmanager
@@ -39,7 +59,25 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
+    # 3. Start APScheduler for automated subscription lifecycle maintenance
+    if not scheduler.running:
+        scheduler.add_job(
+            run_auto_close_job,
+            "interval",
+            hours=24,
+            id="subscription_auto_close",
+            replace_existing=True
+        )
+        scheduler.start()
+        logger.info("APScheduler initialized: daily auto-close job registered.")
+
     yield
+
+    # Shutdown scheduler
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+        logger.info("APScheduler stopped.")
+
     logger.info("Shutting down Brightloop API...")
 
 
@@ -67,9 +105,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount Routers
+# Mount All Routers
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(products.router)
+app.include_router(plans.router)
+app.include_router(taxes.router)
+app.include_router(quotation_templates.router)
+app.include_router(subscriptions.router)
 
 
 @app.get("/health", tags=["System"])

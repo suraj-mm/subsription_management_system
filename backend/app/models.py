@@ -42,11 +42,13 @@ class Product(Base):
     sales_price = Column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
     cost_price = Column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
     notes = Column(Text, nullable=True)
+    tax_id = Column(Integer, ForeignKey("taxes.id", ondelete="SET NULL"), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     # Relationships
+    tax = relationship("Tax")
     variants = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
     subscription_lines = relationship("SubscriptionLine", back_populates="product")
     invoice_lines = relationship("InvoiceLine", back_populates="product")
@@ -179,6 +181,8 @@ class Subscription(Base):
     payment_terms = Column(String(50), default="Immediate", nullable=False)  # "Immediate", "15 days", "30 days"
     status = Column(String(50), default="Draft", nullable=False, index=True)  # "Draft", "Quotation", "Confirmed", "Active", "Paused", "Closed"
     next_invoice_date = Column(Date, nullable=True, index=True)
+    quotation_valid_until = Column(Date, nullable=True)
+    template_id = Column(Integer, ForeignKey("quotation_templates.id", ondelete="SET NULL"), nullable=True)
 
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
@@ -190,6 +194,7 @@ class Subscription(Base):
     # Relationships
     customer = relationship("User", back_populates="subscriptions")
     plan = relationship("Plan", back_populates="subscriptions")
+    template = relationship("QuotationTemplate")
     lines = relationship("SubscriptionLine", back_populates="subscription", cascade="all, delete-orphan")
     invoices = relationship("Invoice", back_populates="subscription")
 
