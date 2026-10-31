@@ -4,6 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from backend.app.config import settings
@@ -14,6 +15,7 @@ from backend.app.routers import (
     auth, admin, products, plans, taxes, quotation_templates,
     subscriptions, discounts, invoices, payments, dashboard
 )
+from backend.app.routers.subscriptions import customers_router
 from backend.app.services.subscription_service import auto_close_expired_subscriptions
 from backend.app.services.invoice_service import run_billing
 from backend.app.services.event_bus import event_bus
@@ -141,6 +143,7 @@ app.include_router(plans.router)
 app.include_router(taxes.router)
 app.include_router(quotation_templates.router)
 app.include_router(subscriptions.router)
+app.include_router(customers_router)
 app.include_router(discounts.router)
 app.include_router(invoices.router)
 app.include_router(payments.router)
@@ -155,3 +158,11 @@ def health_check():
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION
     }
+
+
+# Static files — MUST be mounted AFTER all API routes
+import os
+_frontend_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend")
+_frontend_dir = os.path.abspath(_frontend_dir)
+if os.path.isdir(_frontend_dir):
+    app.mount("/", StaticFiles(directory=_frontend_dir, html=True), name="static")

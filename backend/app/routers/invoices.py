@@ -32,6 +32,7 @@ def serialize_invoice(inv: Invoice) -> InvoiceResponse:
 def list_invoices(
     status: Optional[str] = Query(None, description="Draft, Confirmed, Paid, Cancelled"),
     customer_id: Optional[int] = Query(None, description="Filter by customer ID"),
+    subscription_id: Optional[int] = Query(None, description="Filter by subscription ID"),
     overdue_only: bool = Query(False, description="Filter invoices that are overdue"),
     search: Optional[str] = Query(None, description="Search by invoice number"),
     page: int = Query(1, ge=1),
@@ -49,6 +50,9 @@ def list_invoices(
         query = query.filter(Invoice.customer_id == current_user.id)
     elif customer_id:
         query = query.filter(Invoice.customer_id == customer_id)
+
+    if subscription_id:
+        query = query.filter(Invoice.subscription_id == subscription_id)
 
     if status:
         query = query.filter(Invoice.status == status)

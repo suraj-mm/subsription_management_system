@@ -3,12 +3,109 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Brightloop Subscription Management</title>
+  <title>Brightloop — Subscription Management</title>
+  <meta name="description" content="Unified subscription billing and management platform" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230F766E'><path d='M13 10V3L4 14h7v7l9-11h-7z'/></svg>" />
 </head>
 <body>
-  <div id="app">
-    <h1>Brightloop Subscription Management System</h1>
-    <p>Frontend initialization pending Phase 5.</p>
+
+  <!-- Auth Container (full-screen, shown when not logged in) -->
+  <div id="auth-container" style="display:none"></div>
+
+  <!-- Toast notifications -->
+  <div id="toast-container"></div>
+
+  <!-- App Shell (sidebar + main) -->
+  <div id="app-shell" style="display:none">
+
+    <!-- Sidebar overlay for mobile -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar" aria-label="Main navigation">
+      <!-- Rendered by app.js -->
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Topbar -->
+      <header class="topbar">
+        <button class="topbar-hamburger" id="topbar-hamburger" aria-label="Toggle navigation">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:22px;height:22px">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+        <span class="topbar-title" id="topbar-title">Brightloop</span>
+        <div class="topbar-actions">
+          <span style="font-size:12px;color:var(--color-text-muted)" id="topbar-version">v1.0</span>
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <main class="page-body" id="page-content">
+        <div class="loading-overlay"><div class="spinner"></div></div>
+      </main>
+    </div>
   </div>
+
+  <!-- Bootstrap the SPA -->
+  <script type="module">
+    import { initApp, registerPage } from "/js/app.js";
+
+    // Auth pages
+    import { renderLogin }         from "/js/pages/login.js";
+    import { renderSignup }        from "/js/pages/signup.js";
+    import { renderForgotPassword } from "/js/pages/forgot-password.js";
+    import { renderResetPassword } from "/js/pages/reset-password.js";
+
+    // App pages
+    import { renderDashboard }              from "/js/pages/dashboard.js";
+    import { renderProducts }               from "/js/pages/products.js";
+    import { renderPlans }                  from "/js/pages/plans.js";
+    import { renderTaxes }                  from "/js/pages/taxes.js";
+    import { renderDiscounts }              from "/js/pages/discounts.js";
+    import { renderQuotationTemplates }     from "/js/pages/quotation-templates.js";
+    import { renderCustomers }              from "/js/pages/customers.js";
+    import { renderStaff }                  from "/js/pages/staff.js";
+    import { renderSubscriptions }          from "/js/pages/subscriptions.js";
+    import { renderSubscriptionDetail }     from "/js/pages/subscription-detail.js";
+    import { renderInvoices }               from "/js/pages/invoices.js";
+    import { renderInvoiceDetail }          from "/js/pages/invoice-detail.js";
+    import { renderPayments }               from "/js/pages/payments.js";
+    import { renderProfile }                from "/js/pages/profile.js";
+
+    // Register all routes
+    registerPage("/login",              renderLogin);
+    registerPage("/signup",             renderSignup);
+    registerPage("/forgot-password",    renderForgotPassword);
+    registerPage("/reset-password",     renderResetPassword);
+
+    registerPage("/dashboard",              renderDashboard);
+    registerPage("/products",               renderProducts);
+    registerPage("/plans",                  renderPlans);
+    registerPage("/taxes",                  renderTaxes);
+    registerPage("/discounts",              renderDiscounts);
+    registerPage("/quotation-templates",    renderQuotationTemplates);
+    registerPage("/customers",              renderCustomers);
+    registerPage("/staff",                  renderStaff);
+    registerPage("/subscriptions",          renderSubscriptions);
+    registerPage("/subscriptions/:id",      renderSubscriptionDetail);
+    registerPage("/invoices",               renderInvoices);
+    registerPage("/invoices/:id",           renderInvoiceDetail);
+    registerPage("/payments",               renderPayments);
+    registerPage("/profile",               renderProfile);
+
+    // Default route redirect
+    if (!window.location.hash || window.location.hash === "#" || window.location.hash === "#/") {
+      window.location.hash = "#/login";
+    }
+
+    // Boot!
+    initApp();
+  </script>
 </body>
 </html>

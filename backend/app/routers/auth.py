@@ -1,10 +1,12 @@
 import smtplib
 import logging
+from typing import Optional
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from backend.app.database import get_db
 from backend.app.config import settings
@@ -18,6 +20,13 @@ from backend.app.security import (
     create_reset_token, decode_token
 )
 from backend.app.deps import get_current_user
+
+
+class ProfileUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    company: Optional[str] = None
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -126,7 +135,7 @@ def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
 
     if user and user.is_active:
         token = create_reset_token(user_id=user.id, hashed_password=user.hashed_password)
-        reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+        reset_url = f"{settings.FRONTEND_URL}/#/reset-password?token={token}"
         send_reset_email(user.email, reset_url)
 
     response_data = {
@@ -192,4 +201,27 @@ def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     """Returns the authenticated user's profile."""
+    return current_user
+
+
+@router.patch("/me", response_model=UserResponse)
+def update_me(
+    req: ProfileUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Any authenticated user can update their own name, phone, address, company."""
+    if req.name is not None:
+        name = req.name.strip()
+        if len(name) < 2:
+            raise HTTPException(status_code=422, detail="Name must be at least 2 characters")
+        current_user.name = name
+    if req.phone is not None:
+        current_user.phone = req.phone.strip() or None
+    if req.address is not None:
+        current_user.address = req.address.strip() or None
+    if req.company is not None:
+        current_user.company = req.company.strip() or None
+    db.commit()
+    db.refresh(current_user)
     return current_user

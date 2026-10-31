@@ -12,7 +12,8 @@ from backend.app.models import (
 )
 from backend.app.schemas import (
     SubscriptionCreate, SubscriptionFromTemplateRequest, SubscriptionUpdate,
-    SubscriptionResponse, SubscriptionLineResponse, PaginatedResponse
+    SubscriptionResponse, SubscriptionLineResponse, PaginatedResponse,
+    UserResponse
 )
 from backend.app.deps import get_current_user, require_roles
 from backend.app.routers.plans import is_plan_available
@@ -25,6 +26,28 @@ from backend.app.services.subscription_service import (
 )
 
 router = APIRouter(prefix="/subscriptions", tags=["Subscriptions Management"])
+
+# Customer search router (alias under /customers for staff/admin)
+customers_router = APIRouter(prefix="/customers", tags=["Customers"])
+
+
+@customers_router.get("", response_model=PaginatedResponse[UserResponse])
+def list_customers(
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("admin", "staff"))
+):
+    """Staff/Admin: search customers for pickers and dropdowns."""
+    query = db.query(User).filter(User.role == "customer")
+    if search:
+        s = f"%{search.strip()}%"
+        query = query.filter(or_(User.name.ilike(s), User.email.ilike(s)))
+    total = query.count()
+    items = query.order_by(User.name).offset((page - 1) * size).limit(size).all()
+    pages = ceil(total / size) if total > 0 else 1
+    return {"items": items, "total": total, "page": page, "size": size, "pages": pages}
 
 
 def serialize_subscription(sub: Subscription) -> SubscriptionResponse:
@@ -266,6 +289,27 @@ def get_subscription(
 
 
 # --- Lifecycle Status Actions ---
+
+@router.post("/{id}/quote", response_model=SubscriptionResponse)
+def send_to_quotation(
+    id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles("admin", "staff"))
+):
+    """
+    Staff/Admin only: Transitions subscription from 'Draft' to 'Quotation'.
+    Sets a default quotation_valid_until of 30 days from today if not already set.
+    """
+    sub = db.query(Subscription).filter(Subscription.id == id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    if not sub.quotation_valid_until:
+        sub.quotation_valid_until = datetime.date.today() + datetime.timedelta(days=30)
+
+    updated = transition_subscription(sub, "Quotation", db, user)
+    return serialize_subscription(updated)
+
 
 @router.post("/{id}/confirm", response_model=SubscriptionResponse)
 def confirm_subscription(
