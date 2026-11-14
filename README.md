@@ -23,8 +23,6 @@ Brightloop brings subscription workflows together in one web application. Admini
 | **API** | REST · JWT authentication · interactive OpenAPI/Swagger docs |
 | **Background work** | APScheduler · in-process Server-Sent Events (SSE) |
 
-> Built as an Odoo Hackathon Kochi submission. “Brightloop” is the application name used in the UI and configuration.
-
 ## ✨ Features
 
 - **Three role-based experiences:** admin, billing staff, and customer access are scoped to their responsibilities.
@@ -208,7 +206,7 @@ seed.py            Database setup and demo data
 run.sh             macOS/Linux launcher
 run.bat            Windows launcher
 smoke_test.py      Automated smoke-test flow
- test_phase*_e2e.py End-to-end test scripts
+test_phase*_e2e.py End-to-end test scripts
 benchmark_perf.py  Query performance benchmark
 .env.example       Local configuration template
 ```
