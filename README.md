@@ -3,258 +3,358 @@
 # Brightloop
 ### Subscription Management & Recurring Billing Platform
 
-A full-stack subscription operations app for managing the lifecycle from **quotation to payment**—with role-based access, automated recurring invoices, and live dashboard updates.
+A modern full-stack subscription operations system designed to streamline billing, customer lifecycle management, revenue tracking, and operational visibility across admin, staff, and customer roles.
 
-[Features](#-features) · [Quick start](#-quick-start) · [Demo accounts](#-demo-accounts) · [Architecture](#-how-the-project-is-built) · [Testing](#-testing)
+[Overview](#overview) · [Features](#features) · [Architecture](#architecture) · [How it works](#how-it-works) · [Setup](#setup) · [Usage](#usage)
 
 </div>
 
 ---
 
-## At a glance
+## Overview
 
-Brightloop brings subscription workflows together in one web application. Administrators manage the catalog and team, billing staff handle quotations and invoices, and customers can view their own subscriptions and payment history. The backend applies pricing, tax, discount, and lifecycle rules; scheduled jobs can run recurring billing and close eligible subscriptions.
+Brightloop is a subscription management platform built to handle the full lifecycle of recurring services — from product catalog setup and quotation generation to billing, invoice tracking, payment updates, and customer self-service.
 
-| | |
+It is designed with a business-first mindset: operational efficiency, data integrity, and a clean user experience. The platform supports multiple roles, automated billing workflows, lifecycle controls, and a dashboard that gives real-time visibility into subscription health and revenue performance.
+
+This project demonstrates a strong mix of backend engineering, business logic modeling, API design, database integrity, and frontend usability — making it a strong example of a production-style SaaS application built from scratch.
+
+---
+
+## Why this project stands out
+
+- End-to-end subscription lifecycle management
+- Role-based access for admins, billing staff, and customers
+- Automated recurring billing and invoice generation
+- Real-time dashboard updates without page reloads
+- Business-rule-driven pricing, discounts, taxes, and payment handling
+- Database-level safeguards to reduce operational mistakes and duplicate billing
+- A clean separation between API logic, business services, and presentation
+
+This is not just a CRUD application — it models real operational decisions that subscription businesses face every day.
+
+---
+
+## Features
+
+### 1. Role-based access and user management
+- Admins can manage platform configuration, users, and operational settings
+- Billing staff can manage quotations, subscriptions, and invoice workflows
+- Customers can access only their data and subscriptions
+- Access is scoped to user roles to protect business and customer information
+
+### 2. Subscription lifecycle management
+- Draft, quotation, confirmed, active, paused, and closed states
+- Subscription rules enforce valid transitions and operational flow
+- Expired or inactive subscriptions can be auto-closed by the system
+
+### 3. Recurring billing engine
+- Supports daily, weekly, monthly, and yearly billing plans
+- Generates invoices for due subscription periods automatically
+- Handles billing cycles and recurring invoice logic in a structured manner
+- Prevents duplicate invoice creation for the same subscription period
+
+### 4. Product catalog and pricing
+- Manage products and variants with configurable price differences
+- Apply tax rules and pricing logic consistently
+- Support commerce workflows that resemble real subscription businesses
+
+### 5. Discounts and promotions
+- Fixed and percentage discount support
+- Usage limits and minimum purchase requirements
+- Discount logic helps maintain pricing integrity while reducing revenue leakage
+
+### 6. Invoice and payment workflows
+- Generate and manage invoice records
+- Confirm, send, and print invoice views
+- Record partial payment activity and payment balances
+- Support multiple payment scenarios while maintaining accounting consistency
+
+### 7. Customer self-service experience
+- Customer dashboard for viewing subscriptions and invoices
+- Role isolation ensures each customer sees only their own records
+- Supports realistic portal-style workflows for subscription visibility
+
+### 8. Real-time operations dashboard
+- Revenue, active subscriptions, overdue invoices, and KPI-style summary information
+- Live event streaming keeps the dashboard updated in real time
+- Helps teams monitor operational health without manual refreshes
+
+### 9. Background automation
+- Scheduled jobs handle recurring billing and maintenance tasks
+- Built to resemble a real subscription platform’s day-to-day operational routines
+
+### 10. Data-quality safeguards
+- Composite database constraints help prevent duplicate invoice generation
+- Indexed queries improve performance on high-volume subscription and billing data
+
+---
+
+## Architecture
+
+Brightloop follows a clean 3-tier architecture:
+
+```mermaid
+flowchart LR
+    Browser[Frontend: HTML / CSS / JavaScript] -->|HTTP API| API[FastAPI backend]
+    API --> Services[Business services: pricing, billing, subscriptions, dashboard]
+    Services --> DB[(Relational database: SQLite by default / PostgreSQL-ready)]
+    Scheduler[Background job scheduler] --> Services
+    Services -. Live events .-> EventBus[In-process event bus]
+    EventBus -. SSE to browser .-> Browser
+```
+
+### Backend
+- Python
+- FastAPI
+- SQLAlchemy ORM
+- Pydantic validation and settings
+- JWT-based authentication and role checks
+
+### Frontend
+- HTML
+- CSS
+- Vanilla JavaScript
+- Lightweight interface without heavy framework overhead
+- Event-driven UI for dashboard interaction and real-time updates
+
+### Data layer
+- SQLite is used by default for easy local development
+- PostgreSQL compatibility is supported by configuration
+- Tables model users, taxes, products, plans, subscriptions, invoices, payments, and more
+
+### Background processing
+- APScheduler handles recurring operational jobs
+- SSE-based updates push dashboard changes to connected clients
+
+---
+
+## How it works
+
+### Step-by-step system flow
+
+1. The user accesses the application through the frontend.
+2. Authentication identifies the user role and grants the correct permissions.
+3. Admins configure products, plans, taxes, and discounts.
+4. Billing staff create or manage quotations and subscriptions.
+5. Subscription logic validates status transitions and lifecycle rules.
+6. Billing jobs generate invoices for due subscription periods.
+7. Payments are recorded against invoices and balances are updated.
+8. Dashboard metrics recalculate based on current subscription and invoice data.
+9. SSE pushes updates to connected users in real time.
+
+This gives the app the logic of a functioning recurring revenue platform rather than a mock interface.
+
+---
+
+## Tech stack
+
+| Area | Tools and technologies |
 |---|---|
-| **Backend** | Python 3 · FastAPI · SQLAlchemy · Pydantic |
-| **Frontend** | HTML · CSS · Vanilla JavaScript |
-| **Data** | SQLite by default; PostgreSQL-compatible via `DATABASE_URL` |
-| **API** | REST · JWT authentication · interactive OpenAPI/Swagger docs |
-| **Background work** | APScheduler · in-process Server-Sent Events (SSE) |
+| Backend | Python, FastAPI |
+| Data access | SQLAlchemy ORM |
+| Validation | Pydantic, Pydantic Settings |
+| Auth & security | JWT, bcrypt, role-based access control |
+| Frontend | HTML, CSS, JavaScript |
+| Database | SQLite default, PostgreSQL-ready |
+| Scheduling | APScheduler |
+| Real-time updates | Server-Sent Events (SSE) |
+| Local setup | Virtual environment, pip, uvicorn |
 
-## ✨ Features
+---
 
-- **Three role-based experiences:** admin, billing staff, and customer access are scoped to their responsibilities.
-- **Subscription lifecycle management:** draft, quotation, confirmed, active, paused, and closed states with allowed transitions.
-- **Recurring billing:** daily, weekly, monthly, and yearly plans; invoice generation for due subscription periods; scheduled billing support.
-- **Catalog and pricing:** products, variants, quantities, configurable taxes, and quotation templates.
-- **Discounts:** fixed-value or percentage offers with eligibility and usage rules.
-- **Invoices and payments:** issue, confirm, send, and print invoices; record partial payments and track balances.
-- **Operations dashboard:** subscription and invoice metrics, normalized monthly recurring revenue (MRR), overdue items, and revenue trends.
-- **Live updates:** Server-Sent Events refresh dashboard data without requiring a page reload.
-- **Customer self-service:** customers can view their own subscriptions and invoices; account signup and password reset flows are included.
-- **Background maintenance:** scheduled billing and eligible subscription auto-close tasks.
-- **Database safeguards:** a unique subscription-and-period constraint prevents duplicate recurring invoices; indexes support common list and dashboard queries.
+## Project structure
 
-## 🚀 Quick start
+```text
+backend/app/        API, models, services, routers, config
+frontend/           Frontend assets and UI logic
+requirements.txt    Python dependencies
+seed.py             Demo data seeding
+run.sh              macOS/Linux startup script
+run.bat             Windows startup script
+smoke_test.py       Smoke test suite
+benchmark_perf.py   Performance benchmark script
+.env.example        Environment template
+README.md           Project documentation
+```
 
-### Requirements
+---
 
-- Python 3.10+ recommended
+## Setup
+
+### Prerequisites
+- Python 3.10+
 - Git
 - Windows, macOS, or Linux
 
-### Option 1: Launch with the included script
-
-Clone the repository and enter its directory:
+### Quick start
 
 ```bash
 git clone https://github.com/suraj-mm/subsription_management_system.git
 cd subsription_management_system
 ```
 
-**Windows (Command Prompt):**
+#### Windows
 
 ```bat
 run.bat
 ```
 
-**macOS / Linux:**
+#### macOS / Linux
 
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
 
-The launcher creates a `.env` from `.env.example` if needed, creates a virtual environment, installs dependencies, initializes and seeds the local database on first run, and starts the server.
+The startup script will:
+- create `.env` if needed
+- create a Python virtual environment
+- install dependencies
+- initialize the database
+- seed demo users and records
+- launch the application
 
-Open:
+### Manual setup
 
-- **Application:** <http://localhost:8000>
-- **Interactive API docs:** <http://localhost:8000/docs>
-- **Health check:** <http://localhost:8000/health>
+```bash
+python -m venv venv
 
-### Option 2: Run each setup step yourself
+# Windows
+.\venv\Scripts\Activate.ps1
 
-From the repository root:
+# macOS / Linux
+source venv/bin/activate
 
-1. **Clone and enter the project.**
-
-   ```bash
-   git clone https://github.com/suraj-mm/subsription_management_system.git
-   cd subsription_management_system
-   ```
-
-2. **Create and activate a virtual environment.**
-
-   ```bash
-   # Windows PowerShell
-   python -m venv venv
-   .\venv\Scripts\Activate.ps1
-
-   # macOS / Linux
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-3. **Install Python dependencies.**
-
-   ```bash
-   python -m pip install --upgrade pip
-   pip install -r requirements.txt
-   ```
-
-4. **Set up local configuration.** Copy `.env.example` to `.env` and adjust values if required.
-
-   ```bash
-   # macOS / Linux
-   cp .env.example .env
-
-   # Windows Command Prompt
-   copy .env.example .env
-   ```
-
-5. **Initialize demo data.** For a fresh database, run:
-
-   ```bash
-   python seed.py
-   ```
-
-   To reset and reseed an existing local database, use `python seed.py --reset`. **This resets local demo data.**
-
-6. **Start the API and web app.**
-
-   ```bash
-   uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --workers 1
-   ```
-
-7. **Open the app** at <http://localhost:8000> and sign in with one of the demo accounts below.
-
-> **Why one worker?** The current SSE event bus is in-process memory. Run with a single Uvicorn worker so API requests, scheduled jobs, and event subscribers share that process-local bus.
-
-## 🔐 Demo accounts
-
-The seed script supplies demo users and records. Use these credentials to explore each role:
-
-| Role | Email | Password | Explore |
-|---|---|---|---|
-| Administrator | `admin@brightloop.com` | `Admin@12345` | Dashboard, catalog, staff, and billing operations |
-| Billing staff | `staff@brightloop.com` | `Staff@12345` | Quotations, subscriptions, and invoices |
-| Customer | `tony@stark.org` | `Customer@12345` | Customer portal and an active subscription |
-| Customer | `arjun@nexustech.io` | `Customer@12345` | Customer portal and an overdue invoice |
-| Customer | `alex@acme.com` | `Customer@12345` | Customer portal and paid invoice history |
-| Customer | `rachel@globex.in` | `Customer@12345` | Customer portal and paused subscription |
-
-These are **development/demo credentials only**. Never reuse them in a deployed environment.
-
-### Suggested first walkthrough
-
-1. Sign in as the administrator and review the dashboard.
-2. Open **Invoices** and use **Generate Now** to run recurring billing against subscriptions due for invoicing.
-3. Check the resulting invoices and dashboard metrics; dashboard changes can appear through SSE without a manual refresh.
-4. Sign in as billing staff to explore quotation and invoice workflows.
-5. Sign in as a customer to verify that the portal shows that customer's records rather than another user's.
-
-## 🏗 How the project is built
-
-The application is a conventional three-tier web app: browser UI → FastAPI application and domain services → relational database.
-
-```mermaid
-flowchart LR
-    Browser[HTML / CSS / Vanilla JavaScript] -->|HTTP REST| API[FastAPI routers]
-    API --> Auth[JWT authentication and role checks]
-    API --> Services[Pricing · subscriptions · invoices · dashboard]
-    Services --> DB[(SQLite / PostgreSQL via SQLAlchemy)]
-    Scheduler[APScheduler jobs] --> Services
-    Services -. dashboard events .-> EventBus[In-process event bus]
-    EventBus -. SSE stream .-> Browser
+pip install -r requirements.txt
+cp .env.example .env
+python seed.py
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --workers 1
 ```
 
-### Build and request flow, step by step
+Open the app here:
+- Application: http://localhost:8000
+- Swagger docs: http://localhost:8000/docs
+- Health check: http://localhost:8000/health
 
-1. **The browser renders the frontend.** FastAPI serves the static frontend files alongside its API. The JavaScript app communicates with the backend over HTTP and listens for dashboard events using the browser's `EventSource` API.
-2. **FastAPI routes requests.** Feature routers separate authentication, administration, products, plans, taxes, quotations, subscriptions, discounts, invoices, payments, and dashboard operations.
-3. **Pydantic validates inputs.** Request and response schemas define the shape and validation of data crossing the API boundary.
-4. **Authentication and authorization protect actions.** JWT-based authentication identifies the caller; role checks restrict admin, staff, and customer operations. Customer data access is scoped to the signed-in customer.
-5. **Services implement business rules.** Dedicated services calculate prices and taxes, enforce subscription state transitions, generate recurring invoices, and compute dashboard aggregates.
-6. **SQLAlchemy persists relational data.** Models represent users, products, plans, subscriptions, invoices, line items, payments, and related configuration. SQLite is the no-setup default; the database URL is configurable.
-7. **Schedulers handle recurring work.** APScheduler runs billing and auto-close maintenance jobs. The app also exposes a manual billing action for demonstrations and operations.
-8. **SSE publishes live dashboard events.** Service changes are dispatched through an in-process event bus and streamed to connected browsers.
+---
 
-## 🧰 Technical stack & concepts demonstrated
+## Demo accounts
 
-| Area | Technologies / concepts |
-|---|---|
-| Backend API | Python, FastAPI, REST, OpenAPI, dependency-based request handling |
-| Validation & configuration | Pydantic, Pydantic Settings, environment variables |
-| Persistence | SQLAlchemy ORM, relational modeling, foreign keys, unique constraints, indexes |
-| Security | Password hashing with bcrypt, JWTs, role-based access control, scoped customer access |
-| Frontend | HTML5, CSS3, JavaScript, responsive UI, API integration, hash-based navigation, EventSource/SSE |
-| Business logic | Subscription state machines, recurring schedules, discounts, tax calculations, partial payments, MRR normalization |
-| Background tasks | APScheduler, daily maintenance and billing jobs |
-| Testing & performance | Python smoke/end-to-end scripts and a query benchmark script |
-| Developer tools | Git, Python virtual environments, pip, Uvicorn, browser, Swagger UI at `/docs` |
+The app includes pre-seeded demo credentials for exploring different user roles.
 
-### Repository map
-
-```text
-backend/app/       FastAPI app, configuration, database, models, routers, services
-frontend/          Browser UI assets
-requirements.txt   Python dependencies
-seed.py            Database setup and demo data
-run.sh             macOS/Linux launcher
-run.bat            Windows launcher
-smoke_test.py      Automated smoke-test flow
-test_phase*_e2e.py End-to-end test scripts
-benchmark_perf.py  Query performance benchmark
-.env.example       Local configuration template
-```
-
-## ⚙️ Configuration
-
-The application reads configuration from environment variables (the launcher copies `.env.example` to `.env`). Common settings:
-
-| Variable | Purpose | Local default |
+| Role | Email | Password |
 |---|---|---|
-| `SECRET_KEY` | Signs authentication/reset tokens | Development value in `.env.example` |
-| `DATABASE_URL` | SQLAlchemy connection string | `sqlite:///./brightloop.db` |
-| `FRONTEND_URL` | Frontend origin and reset-link base URL | `http://localhost:8000` |
-| `DEBUG` | Development behavior, including reset-flow diagnostics | `True` |
-| `SMTP_HOST`, `SMTP_PORT` | Optional email server | `smtp.gmail.com`, `587` |
-| `SMTP_USER`, `SMTP_PASSWORD` | Optional SMTP credentials | Empty (console fallback) |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Initial administrator account | Demo credentials above |
+| Administrator | `admin@brightloop.com` | `Admin@12345` |
+| Billing Staff | `staff@brightloop.com` | `Staff@12345` |
+| Customer | `tony@stark.org` | `Customer@12345` |
+| Customer | `arjun@nexustech.io` | `Customer@12345` |
+| Customer | `alex@acme.com` | `Customer@12345` |
+| Customer | `rachel@globex.in` | `Customer@12345` |
 
-For PostgreSQL, provide a SQLAlchemy-compatible PostgreSQL URL as `DATABASE_URL` and install the appropriate PostgreSQL driver. Do not commit `.env` or use development secrets, debug settings, or demo credentials in production.
+These are development/demo credentials and should not be used in production environments.
 
-## 🧪 Testing and performance checks
+---
 
-Run the included smoke test from the project root (with dependencies installed):
+## Usage
+
+### For administrators
+- Manage users and operational settings
+- Configure products, plans, taxes, and discounts
+- Review KPIs and system health
+- Trigger billing operations and monitor platform activity
+
+### For billing staff
+- Create and manage quotations
+- Generate and confirm subscriptions
+- Work on invoices and billing workflows
+- Monitor customer obligations and due payments
+
+### For customers
+- View subscription details
+- Access invoice history
+- See their payment status and subscription health
+- Interact with a portal-like experience designed around self-service
+
+---
+
+## Business logic and technical depth
+
+Brightloop is built around real business rules rather than static demo data.
+
+### Included capabilities
+- Subscription lifecycle controls
+- Pricing and tax computation
+- Discount evaluation
+- Invoice and payment tracking
+- Dashboard metrics and MRR-style business summaries
+- Automated recurring billing workflows
+- Duplicate-prevention safeguards at the database layer
+
+### Important engineering choices
+- Decimal-based financial calculations reduce floating-point errors
+- Database constraints protect against duplicate revenue events
+- Composite indexes improve query performance on billing and subscription operations
+- Event-driven dashboard updates improve operational visibility
+
+---
+
+## Testing and validation
+
+The project includes automated validation and benchmarking utilities.
+
+### Run smoke tests
 
 ```bash
 python smoke_test.py
 ```
 
-Additional end-to-end scripts are provided as `test_phase1_e2e.py`, `test_phase2_e2e.py`, and `test_phase3_e2e.py`. The benchmark script can be run with:
+### Run end-to-end checks
+
+```bash
+python test_phase1_e2e.py
+python test_phase2_e2e.py
+python test_phase3_e2e.py
+```
+
+### Run performance benchmark
 
 ```bash
 python benchmark_perf.py
 ```
 
-The project README previously reported benchmark results on a seeded dataset of roughly 3,000 subscriptions and 10,000 invoices. Treat those timings as environment- and dataset-specific; run the benchmark on your own machine before making performance comparisons.
+---
 
-## 🔍 Design choices worth exploring
+## Production considerations
 
-- **Idempotent recurring invoices:** a database-level unique constraint on `(subscription_id, period_start)` helps prevent duplicate invoices for the same billing period.
-- **Money-aware calculations:** prices and amounts use decimal database columns rather than binary floating-point storage.
-- **Monthly revenue normalization:** daily, weekly, monthly, and yearly plan prices are converted to monthly equivalents for the MRR metric.
-- **Time-dependent overdue state:** overdue status is derived from invoice due date, payment balance, and invoice status rather than becoming stale as time passes.
-- **Indexed operational queries:** composite indexes support common invoice and subscription filtering.
+This project is designed for local demonstration and development, but the architecture is aligned with real-world SaaS patterns. Before production deployment, it is important to harden:
 
-## ⚠️ Scope and production considerations
+- authentication and authorization policies
+- environment configuration and secrets management
+- database migration strategy
+- backups and monitoring
+- background job scaling
+- event streaming for multi-instance deployments
 
-This repository is designed to run locally and demonstrate subscription workflows. Before using it for a production service, review and harden deployment configuration, secret management, authentication/session policy, email delivery, database migrations, backups, observability, and operational error handling. The current SSE event bus is process-local; a multi-worker or multi-instance deployment needs a shared event mechanism (for example, Redis Pub/Sub) and a production database setup.
+The current SSE event bus is process-local and is best suited for a single-instance local environment or a controlled deployment model.
 
-## 📄 License
+---
 
-No license file is currently included. Contact the repository owner before redistributing or reusing the project beyond the permissions provided by GitHub's default terms.
+## Summary
+
+Brightloop is a practical, business-focused subscription platform that brings together:
+
+- subscription lifecycle management
+- recurring billing automation
+- customer-facing workflows
+- dashboard visibility
+- API-driven architecture
+- strong engineering fundamentals
+
+It reflects both business understanding and software engineering discipline, making it a compelling project for technical and product-focused audiences alike.
+
+---
+
+## License
+
+No license file is currently included in the repository. Please review GitHub repository terms and usage permissions before reusing or redistributing this project.
