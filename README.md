@@ -57,7 +57,7 @@ Key dependencies include `fastapi`, `uvicorn`, `sqlalchemy`, `pydantic[email]`, 
 - `backend/app/models.py`, `schemas.py`, `database.py` — relational models, request/response validation, and database setup.
 - `backend/app/security.py`, `deps.py`, `config.py` — password/JWT helpers, request dependencies, and environment-backed settings.
 - `frontend/` — browser UI and API client.
-- `seed.py` — optional demo-data seeder; see the security note below.
+- `seed.py` — optional demo-data seeder.
 
 ## Local Setup
 
@@ -69,7 +69,7 @@ cd subsription_management_system
 python -m venv .venv
 ```
 
-Activate the virtual environment (`.venv\\Scripts\\Activate.ps1` on Windows, or `source .venv/bin/activate` on macOS/Linux), then:
+Activate the virtual environment (`.venv\Scripts\Activate.ps1` on Windows, or `source .venv/bin/activate` on macOS/Linux), then:
 
 ```bash
 pip install -r requirements.txt
@@ -96,8 +96,6 @@ Configure these in your local `.env` file (never commit it):
 | `DEBUG` | Debug mode; disable outside local development |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Initial administrator account; set a unique, strong password before first startup |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | Optional mail delivery configuration |
-
-**Security:** `.env.example` contains development defaults. Replace all secret and password values before use; do not expose this development configuration to the internet. Keep `.env`, database files, and credentials out of version control. `seed.py` creates demo accounts with fixed passwords, so run it only against a disposable local database. Use HTTPS, production-grade secret storage, and a hardened deployment configuration before any real-world deployment.
 
 ---
 
