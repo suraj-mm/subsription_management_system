@@ -1,227 +1,262 @@
-# ⚡ Brightloop — Enterprise Subscription Management Platform
+<div align="center">
 
-> **Odoo Hackathon Kochi — Round 1 Submission**  
-> Brightloop is a unified, real-time subscription lifecycle and recurring billing engine built with FastAPI, SQLite/PostgreSQL, and responsive Vanilla JavaScript. Designed strictly according to ERP integrity principles, it enforces database-level double-billing protection, multi-period recurring billing (daily/weekly/monthly/yearly), promotional discount evaluation before tax, dynamic overdue calculation, and thread-safe Server-Sent Events (SSE) updates—all running seamlessly from a single command with zero external npm or broker dependencies.
+# Brightloop
+### Subscription Management & Recurring Billing Platform
+
+A full-stack subscription operations app for managing the lifecycle from **quotation to payment**—with role-based access, automated recurring invoices, and live dashboard updates.
+
+[Features](#-features) · [Quick start](#-quick-start) · [Demo accounts](#-demo-accounts) · [Architecture](#-how-the-project-is-built) · [Testing](#-testing)
+
+</div>
 
 ---
 
-## ⚡ Quick Start (One Command)
+## At a glance
 
-The entire application (FastAPI backend + unified responsive frontend) starts in one command with zero setup:
+Brightloop brings subscription workflows together in one web application. Administrators manage the catalog and team, billing staff handle quotations and invoices, and customers can view their own subscriptions and payment history. The backend applies pricing, tax, discount, and lifecycle rules; scheduled jobs can run recurring billing and close eligible subscriptions.
 
-### Windows
-```cmd
+| | |
+|---|---|
+| **Backend** | Python 3 · FastAPI · SQLAlchemy · Pydantic |
+| **Frontend** | HTML · CSS · Vanilla JavaScript |
+| **Data** | SQLite by default; PostgreSQL-compatible via `DATABASE_URL` |
+| **API** | REST · JWT authentication · interactive OpenAPI/Swagger docs |
+| **Background work** | APScheduler · in-process Server-Sent Events (SSE) |
+
+> Built as an Odoo Hackathon Kochi submission. “Brightloop” is the application name used in the UI and configuration.
+
+## ✨ Features
+
+- **Three role-based experiences:** admin, billing staff, and customer access are scoped to their responsibilities.
+- **Subscription lifecycle management:** draft, quotation, confirmed, active, paused, and closed states with allowed transitions.
+- **Recurring billing:** daily, weekly, monthly, and yearly plans; invoice generation for due subscription periods; scheduled billing support.
+- **Catalog and pricing:** products, variants, quantities, configurable taxes, and quotation templates.
+- **Discounts:** fixed-value or percentage offers with eligibility and usage rules.
+- **Invoices and payments:** issue, confirm, send, and print invoices; record partial payments and track balances.
+- **Operations dashboard:** subscription and invoice metrics, normalized monthly recurring revenue (MRR), overdue items, and revenue trends.
+- **Live updates:** Server-Sent Events refresh dashboard data without requiring a page reload.
+- **Customer self-service:** customers can view their own subscriptions and invoices; account signup and password reset flows are included.
+- **Background maintenance:** scheduled billing and eligible subscription auto-close tasks.
+- **Database safeguards:** a unique subscription-and-period constraint prevents duplicate recurring invoices; indexes support common list and dashboard queries.
+
+## 🚀 Quick start
+
+### Requirements
+
+- Python 3.10+ recommended
+- Git
+- Windows, macOS, or Linux
+
+### Option 1: Launch with the included script
+
+Clone the repository and enter its directory:
+
+```bash
+git clone https://github.com/suraj-mm/subsription_management_system.git
+cd subsription_management_system
+```
+
+**Windows (Command Prompt):**
+
+```bat
 run.bat
 ```
 
-### macOS / Linux
+**macOS / Linux:**
+
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
 
-### Manual Run
-```bash
-python -m venv venv
-# Windows: .\venv\Scripts\activate | Linux: source venv/bin/activate
-pip install -r requirements.txt
-python seed.py --reset
-uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --workers 1
-```
+The launcher creates a `.env` from `.env.example` if needed, creates a virtual environment, installs dependencies, initializes and seeds the local database on first run, and starts the server.
 
-- 🌐 **Web App:** [http://localhost:8000](http://localhost:8000)
-- 📚 **Swagger API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- 🩺 **System Health Check:** [http://localhost:8000/health](http://localhost:8000/health)
+Open:
 
----
+- **Application:** <http://localhost:8000>
+- **Interactive API docs:** <http://localhost:8000/docs>
+- **Health check:** <http://localhost:8000/health>
 
-## 🔑 Demo Login Accounts
+### Option 2: Run each setup step yourself
 
-All accounts are pre-seeded via `seed.py` with realistic enterprise data:
+From the repository root:
 
-| Role | Email | Password | What to Test |
-| :--- | :--- | :--- | :--- |
-| **Administrator** | `admin@brightloop.com` | `Admin@12345` | Full dashboard, catalog, user & staff management, billing trigger |
-| **Billing Staff** | `staff@brightloop.com` | `Staff@12345` | Quotation templates, subscription confirmation, invoice operations |
-| **Customer (Active)** | `tony@stark.org` | `Customer@12345` | Stark Industries — active subscription due today |
-| **Customer (Overdue)** | `arjun@nexustech.io` | `Customer@12345` | Nexus Tech — invoice overdue, red badge in portal |
-| **Customer (Paid)** | `alex@acme.com` | `Customer@12345` | Acme Corp — historical paid subscription & invoices |
-| **Customer (Paused)** | `rachel@globex.in` | `Customer@12345` | Globex Logistics — paused subscription & quotation |
+1. **Clone and enter the project.**
 
-> 🎯 **5-Minute Evaluator Live Demo Flow:**
-> 1. Log in as **Administrator** (`admin@brightloop.com` / `Admin@12345`).
-> 2. Open two browser windows: one with the **Dashboard** and one with **Invoices**.
-> 3. Go to **Invoices** and click **"Generate Now"** → Run Billing.
-> 4. Notice how Tony Stark and Bruce Wayne's subscriptions due today generate draft invoices, and the dashboard immediately updates via real-time SSE without a page reload!
+   ```bash
+   git clone https://github.com/suraj-mm/subsription_management_system.git
+   cd subsription_management_system
+   ```
 
----
+2. **Create and activate a virtual environment.**
 
-## 🗺 Requirements & Problem Statement Map
+   ```bash
+   # Windows PowerShell
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1
 
-| Scene / Requirement in Problem Statement | Implemented Feature in Brightloop | File Location |
-| :--- | :--- | :--- |
-| **Role-Based Access Control (3 Roles)** | Admin (system/staff/catalog), Staff (ops/quotes/subs), Customer (self-service only) | [`backend/app/deps.py`](file:///backend/app/deps.py), [`backend/app/routers/admin.py`](file:///backend/app/routers/admin.py) |
-| **Password Complexity Rule** | Strictly >8 characters (minimum 9), uppercase, lowercase, digit, special character | [`backend/app/schemas.py`](file:///backend/app/schemas.py#L12-L28) |
-| **Taxes & Variant Pricing** | 18% GST default on products; Odoo connector variant adding +₹560 | [`backend/app/services/pricing_service.py`](file:///backend/app/services/pricing_service.py), [`backend/app/routers/products.py`](file:///backend/app/routers/products.py) |
-| **Flexible Billing Plans** | Daily, Weekly, Monthly, Yearly cycles + 4 policy flags (auto_close, pause, renew, early_close) | [`backend/app/routers/plans.py`](file:///backend/app/routers/plans.py), [`backend/app/models.py`](file:///backend/app/models.py#L90-L115) |
-| **Promotional Discounts** | Value/Percentage, min_purchase, usage limits, non-stacking best discount evaluation | [`backend/app/services/invoice_service.py`](file:///backend/app/services/invoice_service.py#L40-L110) |
-| **Quotation Templates** | Pre-bundled products & variants with line-item snapshots and validity days | [`backend/app/routers/quotation_templates.py`](file:///backend/app/routers/quotation_templates.py) |
-| **Subscription Lifecycle** | Strict state machine: `Draft` → `Quotation` → `Confirmed` → `Active` ↔ `Paused` → `Closed` | [`backend/app/services/subscription_service.py`](file:///backend/app/services/subscription_service.py) |
-| **Automated Recurring Billing** | Catch-up billing loop, calendar-aware dates, automatic line duplication and pricing | [`backend/app/services/invoice_service.py`](file:///backend/app/services/invoice_service.py) |
-| **Double-Billing Guarantee** | Composite `UniqueConstraint("subscription_id", "period_start")` + atomic savepoints | [`backend/app/models.py`](file:///backend/app/models.py#L250-L255) |
-| **Invoice Operations** | Bulk confirm, send notification, printable formatted HTML view | [`backend/app/routers/invoices.py`](file:///backend/app/routers/invoices.py#L235-L350) |
-| **Payments & Balances** | Partial payments, overpayment rejection, auto-Paid status, multiple payment methods | [`backend/app/routers/payments.py`](file:///backend/app/routers/payments.py) |
-| **Real-Time Dashboard & MRR** | Normalized MRR calculation, dynamic overdue query, CSS revenue chart, SSE event bus | [`backend/app/services/dashboard_service.py`](file:///backend/app/services/dashboard_service.py), [`backend/app/services/event_bus.py`](file:///backend/app/services/event_bus.py) |
-| **Password Reset Flow** | Stateless single-use fingerprint JWT, console fallback + SMTP support | [`backend/app/routers/auth.py`](file:///backend/app/routers/auth.py#L115-L195) |
-| **Sub-2s Query Performance** | Composite indexing on `(status, due_date, customer_id)`, paginated server-side queries | [`backend/app/models.py`](file:///backend/app/models.py), [`benchmark_perf.py`](file:///benchmark_perf.py) |
+   # macOS / Linux
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
 
----
+3. **Install Python dependencies.**
 
-## 🏛 System Architecture
+   ```bash
+   python -m pip install --upgrade pip
+   pip install -r requirements.txt
+   ```
+
+4. **Set up local configuration.** Copy `.env.example` to `.env` and adjust values if required.
+
+   ```bash
+   # macOS / Linux
+   cp .env.example .env
+
+   # Windows Command Prompt
+   copy .env.example .env
+   ```
+
+5. **Initialize demo data.** For a fresh database, run:
+
+   ```bash
+   python seed.py
+   ```
+
+   To reset and reseed an existing local database, use `python seed.py --reset`. **This resets local demo data.**
+
+6. **Start the API and web app.**
+
+   ```bash
+   uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --workers 1
+   ```
+
+7. **Open the app** at <http://localhost:8000> and sign in with one of the demo accounts below.
+
+> **Why one worker?** The current SSE event bus is in-process memory. Run with a single Uvicorn worker so API requests, scheduled jobs, and event subscribers share that process-local bus.
+
+## 🔐 Demo accounts
+
+The seed script supplies demo users and records. Use these credentials to explore each role:
+
+| Role | Email | Password | Explore |
+|---|---|---|---|
+| Administrator | `admin@brightloop.com` | `Admin@12345` | Dashboard, catalog, staff, and billing operations |
+| Billing staff | `staff@brightloop.com` | `Staff@12345` | Quotations, subscriptions, and invoices |
+| Customer | `tony@stark.org` | `Customer@12345` | Customer portal and an active subscription |
+| Customer | `arjun@nexustech.io` | `Customer@12345` | Customer portal and an overdue invoice |
+| Customer | `alex@acme.com` | `Customer@12345` | Customer portal and paid invoice history |
+| Customer | `rachel@globex.in` | `Customer@12345` | Customer portal and paused subscription |
+
+These are **development/demo credentials only**. Never reuse them in a deployed environment.
+
+### Suggested first walkthrough
+
+1. Sign in as the administrator and review the dashboard.
+2. Open **Invoices** and use **Generate Now** to run recurring billing against subscriptions due for invoicing.
+3. Check the resulting invoices and dashboard metrics; dashboard changes can appear through SSE without a manual refresh.
+4. Sign in as billing staff to explore quotation and invoice workflows.
+5. Sign in as a customer to verify that the portal shows that customer's records rather than another user's.
+
+## 🏗 How the project is built
+
+The application is a conventional three-tier web app: browser UI → FastAPI application and domain services → relational database.
 
 ```mermaid
-flowchart TD
-    subgraph Client ["Client Tier (Vanilla JS + HTML5 + CSS3)"]
-        UI["App Shell (Hash Routing #/path)"]
-        SSE_Client["SSE Listener (EventSource)"]
-        Forms["Validation & Dynamic Stepper"]
-    end
-
-    subgraph Server ["Application Tier (FastAPI + Python 3)"]
-        API["REST Endpoints (11 Routers)"]
-        Auth["JWT Auth & Role Guards (admin/staff/customer)"]
-        Bus["Thread-Safe In-Process EventBus"]
-        Scheduler["APScheduler (Daily Billing & Auto-Close Jobs)"]
-    end
-
-    subgraph Services ["Core Domain Business Services"]
-        PriceSvc["pricing_service.py (Quantized Decimal & Taxes)"]
-        SubSvc["subscription_service.py (State Machine & Auto-Close)"]
-        InvSvc["invoice_service.py (Billing Engine & Idempotency)"]
-        DashSvc["dashboard_service.py (MRR & SQL Aggregates)"]
-    end
-
-    subgraph Data ["Database Tier (SQLite / PostgreSQL)"]
-        DB[("Relational Store (13 Tables)")]
-        UQ["UniqueConstraint(subscription_id, period_start)"]
-        Idx["Composite Indexes: status + due_date + customer_id"]
-    end
-
-    Client -->|HTTP REST / OAuth2 Form| Server
-    Server --> Services
-    Services --> Data
-    Scheduler -->|Cron Trigger| Services
-    Services -->|Event Dispatch| Bus
-    Bus -.->|SSE text/event-stream| SSE_Client
-    Data --- UQ
-    Data --- Idx
+flowchart LR
+    Browser[HTML / CSS / Vanilla JavaScript] -->|HTTP REST| API[FastAPI routers]
+    API --> Auth[JWT authentication and role checks]
+    API --> Services[Pricing · subscriptions · invoices · dashboard]
+    Services --> DB[(SQLite / PostgreSQL via SQLAlchemy)]
+    Scheduler[APScheduler jobs] --> Services
+    Services -. dashboard events .-> EventBus[In-process event bus]
+    EventBus -. SSE stream .-> Browser
 ```
 
----
+### Build and request flow, step by step
 
-## 💡 Key Architectural & Business Decisions
+1. **The browser renders the frontend.** FastAPI serves the static frontend files alongside its API. The JavaScript app communicates with the backend over HTTP and listens for dashboard events using the browser's `EventSource` API.
+2. **FastAPI routes requests.** Feature routers separate authentication, administration, products, plans, taxes, quotations, subscriptions, discounts, invoices, payments, and dashboard operations.
+3. **Pydantic validates inputs.** Request and response schemas define the shape and validation of data crossing the API boundary.
+4. **Authentication and authorization protect actions.** JWT-based authentication identifies the caller; role checks restrict admin, staff, and customer operations. Customer data access is scoped to the signed-in customer.
+5. **Services implement business rules.** Dedicated services calculate prices and taxes, enforce subscription state transitions, generate recurring invoices, and compute dashboard aggregates.
+6. **SQLAlchemy persists relational data.** Models represent users, products, plans, subscriptions, invoices, line items, payments, and related configuration. SQLite is the no-setup default; the database URL is configurable.
+7. **Schedulers handle recurring work.** APScheduler runs billing and auto-close maintenance jobs. The app also exposes a manual billing action for demonstrations and operations.
+8. **SSE publishes live dashboard events.** Service changes are dispatched through an in-process event bus and streamed to connected browsers.
 
-### 1. Database-Level Double-Billing Prevention
-Instead of relying solely on application-level locks, Brightloop enforces a composite database unique constraint:
-```python
-UniqueConstraint("subscription_id", "period_start", name="uq_invoice_subscription_period")
-```
-Every billing execution wraps each subscription in a database savepoint. If a duplicate billing event is triggered simultaneously, the database raises an `IntegrityError`, the savepoint rolls back safely, and already generated invoices remain clean and uncorrupted.
+## 🧰 Technical stack & concepts demonstrated
 
-### 2. Tax Computation on Discounted Amounts
-Per ERP standard accounting rules, taxes are never calculated on gross list prices when a discount is present. Brightloop applies discounts first to establish the true taxable base:
-$$\text{Taxable Amount} = \max(0, \text{Subtotal} - \text{Discount})$$
-$$\text{Tax} = \text{Taxable Amount} \times \text{Tax Rate}$$
-$$\text{Total} = \text{Taxable Amount} + \text{Tax}$$
+| Area | Technologies / concepts |
+|---|---|
+| Backend API | Python, FastAPI, REST, OpenAPI, dependency-based request handling |
+| Validation & configuration | Pydantic, Pydantic Settings, environment variables |
+| Persistence | SQLAlchemy ORM, relational modeling, foreign keys, unique constraints, indexes |
+| Security | Password hashing with bcrypt, JWTs, role-based access control, scoped customer access |
+| Frontend | HTML5, CSS3, JavaScript, responsive UI, API integration, hash-based navigation, EventSource/SSE |
+| Business logic | Subscription state machines, recurring schedules, discounts, tax calculations, partial payments, MRR normalization |
+| Background tasks | APScheduler, daily maintenance and billing jobs |
+| Testing & performance | Python smoke/end-to-end scripts and a query benchmark script |
+| Developer tools | Git, Python virtual environments, pip, Uvicorn, browser, Swagger UI at `/docs` |
 
-### 3. Normalized MRR Calculation
-Subscriptions span diverse billing periods. Brightloop normalizes recurring revenue to a true monthly equivalent:
-- Daily: $\text{Price} \times 30$
-- Weekly: $\text{Price} \times \frac{52}{12}$
-- Monthly: $\text{Price} \times 1$
-- Yearly: $\text{Price} \div 12$
+### Repository map
 
-### 4. Overdue Status Computed Dynamically
-Invoice status is never stored statically as "Overdue". Storing "Overdue" causes data rot because invoices become overdue with the passage of time without any user intervention. Brightloop computes overdue dynamically:
-$$\text{Is Overdue} \iff \text{status} = \text{"Confirmed"} \land \text{due\_date} < \text{today} \land \text{amount\_paid} < \text{total\_amount}$$
-This query uses our composite index `ix_inv_status_due_cust` for sub-millisecond execution.
-
-### 5. In-Process Thread-Safe SSE Event Bus
-Real-time dashboard updates do not require heavy external brokers like Redis or RabbitMQ. An in-process `EventBus` links background scheduler worker threads to asyncio SSE streaming generators via `loop.call_soon_threadsafe()`.
-
----
-
-## 📊 Performance Benchmarks (< 2.0s Requirement)
-
-Tested with **3,000 subscriptions and 10,000 invoices** using `benchmark_perf.py`:
-
-| Operation | Dataset Size | Measured Latency | Problem Statement Limit | Result |
-| :--- | :--- | :--- | :--- | :--- |
-| **Subscriptions List Query** (Page 1/20 + Count) | 3,008 subscriptions | **4.52 ms** | < 2,000 ms | ⚡ **440x faster** |
-| **Invoices List Query** (Page 1/20 + Count) | 10,005 invoices | **11.30 ms** | < 2,000 ms | ⚡ **175x faster** |
-| **Dashboard Summary Aggregates** (MRR + Totals) | 10,005 invoices | **190.50 ms** | < 2,000 ms | ⚡ **10x faster** |
-| **Overdue Invoices Query** (`due_date < today`) | 10,005 invoices | **26.61 ms** | < 2,000 ms | ⚡ **75x faster** |
-| **12-Month Revenue Trend Aggregation** | 10,005 invoices | **15.04 ms** | < 2,000 ms | ⚡ **130x faster** |
-
-### Verified Query Execution Plan
-```sql
-EXPLAIN QUERY PLAN SELECT * FROM invoices WHERE status = 'Confirmed' AND due_date < '2026-10-31';
--- Result: SEARCH invoices USING INDEX ix_inv_status_due_cust (status=? AND due_date<?)
+```text
+backend/app/       FastAPI app, configuration, database, models, routers, services
+frontend/          Browser UI assets
+requirements.txt   Python dependencies
+seed.py            Database setup and demo data
+run.sh             macOS/Linux launcher
+run.bat            Windows launcher
+smoke_test.py      Automated smoke-test flow
+ test_phase*_e2e.py End-to-end test scripts
+benchmark_perf.py  Query performance benchmark
+.env.example       Local configuration template
 ```
 
----
+## ⚙️ Configuration
 
-## 🧪 Comprehensive Automated Smoke Test Suite
+The application reads configuration from environment variables (the launcher copies `.env.example` to `.env`). Common settings:
 
-Brightloop includes an automated 19-step end-to-end verification script:
+| Variable | Purpose | Local default |
+|---|---|---|
+| `SECRET_KEY` | Signs authentication/reset tokens | Development value in `.env.example` |
+| `DATABASE_URL` | SQLAlchemy connection string | `sqlite:///./brightloop.db` |
+| `FRONTEND_URL` | Frontend origin and reset-link base URL | `http://localhost:8000` |
+| `DEBUG` | Development behavior, including reset-flow diagnostics | `True` |
+| `SMTP_HOST`, `SMTP_PORT` | Optional email server | `smtp.gmail.com`, `587` |
+| `SMTP_USER`, `SMTP_PASSWORD` | Optional SMTP credentials | Empty (console fallback) |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Initial administrator account | Demo credentials above |
+
+For PostgreSQL, provide a SQLAlchemy-compatible PostgreSQL URL as `DATABASE_URL` and install the appropriate PostgreSQL driver. Do not commit `.env` or use development secrets, debug settings, or demo credentials in production.
+
+## 🧪 Testing and performance checks
+
+Run the included smoke test from the project root (with dependencies installed):
+
 ```bash
 python smoke_test.py
 ```
 
-### 19-Step Test Matrix
-- [x] **Step 1:** Customer Signup & Password Validation (<=8 chars rejected, valid works, duplicate email 409)
-- [x] **Step 2:** Admin Login & Staff Creation Guard (Staff/Customer get 403)
-- [x] **Step 3:** Tax Configuration (18% GST created)
-- [x] **Step 4:** Product with Odoo Variant (+₹560 price modifier)
-- [x] **Step 5:** Subscription Plan Configuration (min_quantity=5, pause/renew flags)
-- [x] **Step 6:** Promotional Discount Configuration (10% discount, usage limits)
-- [x] **Step 7:** Quotation Template Creation by Staff
-- [x] **Step 8:** Create Subscription from Template (lands in Quotation with validity date)
-- [x] **Step 9:** State Machine Enforcement (invalid jump to Active returns 400, Confirm & Activate work)
-- [x] **Step 10:** Automated Billing Engine Run (Draft invoice generated with taxes & discounts)
-- [x] **Step 11:** Double-Billing Protection (re-run generates 0 duplicates)
-- [x] **Step 12:** Invoice Operations (Confirm, Send, and Print HTML)
-- [x] **Step 13:** Payments & Balance Tracking (Partial payments, auto-Paid, overpayment 400, cancel Paid 400)
-- [x] **Step 14:** Dashboard Real-Time Metrics & KPI Hand Calculation Validation
-- [x] **Step 15:** SSE Real-Time Event Stream Connection & Heartbeat
-- [x] **Step 16:** Customer Role Scoping & Isolation (customer sees only own records, 404 for others)
-- [x] **Step 17:** Background Maintenance & Auto-Close Engine
-- [x] **Step 18:** Password Reset Flow (stateless fingerprint JWT, old password fails, new password works)
-- [x] **Step 19:** High-Scale Query Latency Verification (< 2.0s confirmed on all endpoints)
+Additional end-to-end scripts are provided as `test_phase1_e2e.py`, `test_phase2_e2e.py`, and `test_phase3_e2e.py`. The benchmark script can be run with:
 
----
+```bash
+python benchmark_perf.py
+```
 
-## ⚙️ Environment Variables
+The project README previously reported benchmark results on a seeded dataset of roughly 3,000 subscriptions and 10,000 invoices. Treat those timings as environment- and dataset-specific; run the benchmark on your own machine before making performance comparisons.
 
-All settings have safe zero-setup defaults:
+## 🔍 Design choices worth exploring
 
-| Variable | Default Value | Description |
-| :--- | :--- | :--- |
-| `SECRET_KEY` | `dev-secret-key-brightloop-12345` | Cryptographic secret for signing JWT tokens |
-| `DATABASE_URL` | `sqlite:///./brightloop.db` | SQLAlchemy connection string (swap to PostgreSQL with 1 line) |
-| `FRONTEND_URL` | `http://localhost:8000` | Allowed CORS origin and base URL for reset links |
-| `DEBUG` | `True` | Exposes password reset URLs in API response for local offline evaluation |
-| `SMTP_HOST` | `smtp.gmail.com` | SMTP server host (optional) |
-| `SMTP_PORT` | `587` | SMTP server port |
-| `SMTP_USER` | `""` | SMTP sender username (if blank, emails fall back to server console) |
-| `SMTP_PASSWORD` | `""` | SMTP password / app password |
-| `ADMIN_EMAIL` | `admin@brightloop.com` | Pre-seeded root administrator email |
-| `ADMIN_PASSWORD` | `Admin@12345` | Pre-seeded root administrator password |
+- **Idempotent recurring invoices:** a database-level unique constraint on `(subscription_id, period_start)` helps prevent duplicate invoices for the same billing period.
+- **Money-aware calculations:** prices and amounts use decimal database columns rather than binary floating-point storage.
+- **Monthly revenue normalization:** daily, weekly, monthly, and yearly plan prices are converted to monthly equivalents for the MRR metric.
+- **Time-dependent overdue state:** overdue status is derived from invoice due date, payment balance, and invoice status rather than becoming stale as time passes.
+- **Indexed operational queries:** composite indexes support common invoice and subscription filtering.
 
----
+## ⚠️ Scope and production considerations
 
-## 🔍 Known Limitations & Production Roadmap
+This repository is designed to run locally and demonstrate subscription workflows. Before using it for a production service, review and harden deployment configuration, secret management, authentication/session policy, email delivery, database migrations, backups, observability, and operational error handling. The current SSE event bus is process-local; a multi-worker or multi-instance deployment needs a shared event mechanism (for example, Redis Pub/Sub) and a production database setup.
 
-1. **Single-Worker In-Process EventBus:** The SSE bus runs in-process with `asyncio`. To scale across multi-node Kubernetes clusters, swap the in-process event bus with a Redis Pub/Sub adapter.
-2. **SQLite File Concurrency:** SQLite is configured with WAL mode (`PRAGMA journal_mode=WAL`) and `busy_timeout=5000` for excellent local performance. For production environments with millions of concurrent writes, switch `DATABASE_URL` to PostgreSQL.
-3. **Email Delivery:** If SMTP credentials are not configured in `.env`, reset links and dispatch notifications cleanly simulate delivery to the server console with zero errors.
+## 📄 License
+
+No license file is currently included. Contact the repository owner before redistributing or reusing the project beyond the permissions provided by GitHub's default terms.
